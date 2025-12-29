@@ -1,8 +1,7 @@
 import os
 import google.generativeai as genai
-from flask import Flask, request
+from flask import Flask, request, make_response
 
-# הגדרת Gemini עם המפתח שלך
 genai.configure(api_key="AIzaSyCTsATxKCBR2EelzU8qzQZ9aOIT6QXLM8U")
 model = genai.GenerativeModel('gemini-1.5-flash')
 
@@ -10,28 +9,34 @@ app = Flask(__name__)
 
 @app.route('/', methods=['GET', 'POST'])
 def gemini_ivr():
-    # כשהמחייג נכנס לשלוחה
+    # שלב א: כניסה לשלוחה (GET)
     if request.method == 'GET':
-        return (
-            "say=נא לומר את השאלה לאחר הצליל ובסיום להקיש סולמית."
-            "&re_api=type=record"
-            "&record_ok=no"
-            "&record_ok_no_ask=yes"
-            "&record_post_file_name=file"
-        )
+        # הפקודה שמורה לימות המשיח להקליט ולשלוח לשרת
+        response_text = "say=נא לומר את השאלה לאחר הצליל ובסיום להקיש סולמית.&re_api=type=record&record_ok=no&record_ok_no_ask=yes&record_post_file_name=file"
+        res = make_response(response_text)
+        res.headers["Content-Type"] = "text/plain; charset=utf-8"
+        return res
 
-    # קבלת הקלטה ועיבוד ע"י ג'ימיני (חינמי - ללא יחידות תמלול)
+    # שלב ב: קבלת ההקלטה (POST)
     if request.method == 'POST':
         if 'file' in request.files:
-            audio_data = request.files['file'].read()
-            prompt = "הקשב להקלטה וענה עליה בעברית קצרה מאוד וללא סימנים מיוחדים."
-            response = model.generate_content([
-                prompt,
-                {'mime_type': 'audio/wav', 'data': audio_data}
-            ])
-            clean_text = response.text.replace('*', '').replace('#', '')
-            return f"say={clean_text}&next=hangup"
+            try:
+                audio_data = request.files['file'].read()
+                # שליחה לג'ימיני
+                gen_response = model.generate_content([
+                    "ענה בקצרה מאוד בעברית על השאלה שבהקלטה. ללא סימנים מיוחדים.",
+                    {'mime_type': 'audio/wav', 'data': audio_data}
+                ])
+                answer = gen_response.text.replace('*', '').replace('#', '')
+                res = make_response(f"say={answer}&next=hangup")
+            except Exception:
+                res = make_response("say=חלה שגיאה בעיבוד.&next=hangup")
+        else:
+            res = make_response("say=לא התקבל קובץ.&next=hangup")
             
+        res.headers["Content-Type"] = "text/plain; charset=utf-8"
+        return res
+
     return "hangup"
 
 if __name__ == "__main__":
