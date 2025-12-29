@@ -9,36 +9,38 @@ app = Flask(__name__)
 
 @app.route('/', methods=['GET', 'POST'])
 def gemini_ivr():
-    # שלב א: כניסה לשלוחה (GET)
+    # אם ימות המשיח שולחים הודעת ניתוק, אנחנו מאשרים ומסיימים
+    if request.args.get('hangup') == 'yes':
+        return "ok"
+
     if request.method == 'GET':
-        # הפקודה שמורה לימות המשיח להקליט ולשלוח לשרת
+        # פקודה לימות המשיח: הקלטה ושליחה לשרת ב-POST
         response_text = "say=נא לומר את השאלה לאחר הצליל ובסיום להקיש סולמית.&re_api=type=record&record_ok=no&record_ok_no_ask=yes&record_post_file_name=file"
         res = make_response(response_text)
         res.headers["Content-Type"] = "text/plain; charset=utf-8"
         return res
 
-    # שלב ב: קבלת ההקלטה (POST)
     if request.method == 'POST':
-        if 'file' in request.files:
+        file = request.files.get('file')
+        if file:
             try:
-                audio_data = request.files['file'].read()
-                # שליחה לג'ימיני
-                gen_response = model.generate_content([
-                    "ענה בקצרה מאוד בעברית על השאלה שבהקלטה. ללא סימנים מיוחדים.",
+                audio_data = file.read()
+                # פנייה לג'ימיני
+                response = model.generate_content([
+                    "ענה בעברית קצרה מאוד על השאלה שבהקלטה. ללא סימנים מיוחדים.",
                     {'mime_type': 'audio/wav', 'data': audio_data}
                 ])
-                answer = gen_response.text.replace('*', '').replace('#', '')
+                answer = response.text.replace('*', '').replace('#', '')
                 res = make_response(f"say={answer}&next=hangup")
             except Exception:
-                res = make_response("say=חלה שגיאה בעיבוד.&next=hangup")
+                res = make_response("say=חלה שגיאה בעיבוד השאלה.&next=hangup")
         else:
-            res = make_response("say=לא התקבל קובץ.&next=hangup")
+            res = make_response("say=לא התקבל קובץ קולי.&next=hangup")
             
         res.headers["Content-Type"] = "text/plain; charset=utf-8"
         return res
 
-    return "hangup"
+    return "ok"
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
