@@ -9,15 +9,16 @@ app = Flask(__name__)
 
 @app.route('/', methods=['GET', 'POST'])
 def gemini_ivr():
-    # אם המערכת מודיעה על ניתוק, אל תחזיר פקודות 'say'
+    # אם המערכת בניתוק - תעצור
     if request.args.get('hangup') == 'yes':
         return Response("ok", mimetype='text/plain')
 
+    # שלב 1: כניסה לשלוחה - פקודת הקלטה בלבד
     if request.method == 'GET':
-        # הפקודה לימות המשיח - שים לב לשינוי קטן ב-re_api
-        text = "say=נא לומר את השאלה לאחר הצליל ובסיום להקיש סולמית.&re_api=yes&type=record&record_post_file_name=file"
+        text = "type=record&record_post_file_name=file&record_ok=no"
         return Response(text, mimetype='text/plain')
 
+    # שלב 2: קבלת הקובץ
     if request.method == 'POST':
         file = request.files.get('file')
         if file:
@@ -31,7 +32,12 @@ def gemini_ivr():
                 return Response(f"say={answer}&next=hangup", mimetype='text/plain')
             except Exception:
                 return Response("say=שגיאה בעיבוד&next=hangup", mimetype='text/plain')
+        else:
+            # זה הבלוק שהיה חסר או לא מוזח נכון
+            return Response("say=לא התקבל קובץ&next=hangup", mimetype='text/plain')
     
     return Response("ok", mimetype='text/plain')
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
