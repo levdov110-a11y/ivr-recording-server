@@ -1,41 +1,47 @@
 import os
 import google.generativeai as genai
-from flask import Flask, request, make_response
+from flask import Flask, request, Response
 
+# הגדרת מפתח ה-API של ג'ימיני
 genai.configure(api_key="AIzaSyCTsATxKCBR2EelzU8qzQZ9aOIT6QXLM8U")
 model = genai.GenerativeModel('gemini-1.5-flash')
 
 app = Flask(__name__)
 
-@app.route('/', methods=['GET', 'POST', 'PUT'])
-def gemini_ivr():
-    # טיפול בניתוק
-    if request.args.get('hangup') == 'yes':
-        return make_response("ok", 200, {'Content-Type': 'text/plain'})
+# דף הבית - כדי שתוכל לראות בדפדפן שהשרת עובד
+@app.route('/')
+def home():
+    return "The Server is LIVE! Waiting for audio from Yemot Hamashiah..."
 
-    # שלב הכניסה - GET
-    if request.method == 'GET':
-        # פקודה אחת פשוטה שמשלבת הודעה והקלטה
-        res_text = "say=נא לומר שאלה ובסיום סולמית&type=record&record_post_file_name=file"
-        return make_response(res_text, 200, {'Content-Type': 'text/plain'})
-
-    # שלב קבלת הקובץ - POST
-    if request.method == 'POST':
-        file = request.files.get('file')
-        if file:
-            try:
-                audio_data = file.read()
-                response = model.generate_content([
-                    "ענה בעברית קצרה מאוד. ללא סימנים מיוחדים.",
-                    {'mime_type': 'audio/wav', 'data': audio_data}
-                ])
-                answer = response.text.replace('*', '').replace('#', '').strip()
-                res_text = f"say={answer}&next=hangup"
-                return make_response(res_text, 200, {'Content-Type': 'text/plain'})
-            except Exception:
-                return make_response("say=תקלה בעיבוד&next=hangup", 200, {'Content-Type': 'text/plain'})
+# הנתיב שימות המשיח פונים אליו (צריך להופיע ב-api_link)
+@app.route('/chat', methods=['GET', 'POST'])
+def gemini_chat():
+    # בשיטה שלך, ימות המשיח שולחים את הקובץ ב-POST תחת השם 'file'
+    file = request.files.get('file')
     
-    return make_response("ok", 200, {'Content-Type': 'text/plain'})
+    if file:
+        try:
+            audio_data = file.read()
+            # שליחת קובץ השמע לבינה המלאכותית
+            response = model.generate_content([
+                "ענה בעברית קצרה מאוד על השאלה שבהקלטה. ללא כוכביות או סימנים מיוחדים.",
+                {'mime_type': 'audio/wav', 'data': audio_data}
+            ])
+            
+            # ניקוי התשובה מסימנים שעלולים לשבש את ההקראה
+            answer = response.text.replace('*', '').replace('#', '').strip()
+            
+            # החזרת הפקודה לימות המשיח
+            return Response(f"say={answer}&next=hangup", mimetype='text/plain')
+            
+        except Exception as e:
+            print(f"Error: {e}")
+            return Response("say=תקלה בעיבוד התשובה&next=hangup", mimetype='text/plain')
+    
+    # במקרה שמישהו נכנס ללינק בלי לשלוח קובץ
+    return Response("say=לא התקבלה הקלטה&next=hangup", mimetype='text/plain')
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)))
+    # הרצת השרת על הפורט ש-Render נותן
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
