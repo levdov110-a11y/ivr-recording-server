@@ -6,17 +6,17 @@ from flask import Flask, request, Response
 # הגדרת המפתח
 genai.configure(api_key="AIzaSyCTsATxKCBR2EelzU8qzQZ9aOIT6QXLM8U")
 
-# תיקון שם המודל לפורמט המלא
+# שינוי שם המודל לשם הבסיסי והנקי
 model = genai.GenerativeModel(
-    model_name='models/gemini-1.5-flash-latest',
-    system_instruction="אתה עוזר קולי חכם. ענה על השאלה שבהקלטה בעברית קצרה מאוד, ללא סימנים מיוחדים כמו כוכביות."
+    model_name='gemini-1.5-flash',
+    system_instruction="אתה עוזר קולי חכם. ענה על השאלה שבהקלטה בעברית קצרה מאוד, ללא סימנים מיוחדים."
 )
 
 app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Server is Up and Running!"
+    return "Server is Up!"
 
 @app.route('/chat', methods=['GET', 'POST'])
 def gemini_chat():
@@ -34,21 +34,21 @@ def gemini_chat():
                 print("DEBUG: File downloaded successfully")
                 audio_data = audio_response.content
                 
-                # שליחה למודל המעודכן
+                # יצירת התוכן עם טיפול בשגיאות ספציפי לג'ימיני
                 response = model.generate_content([
                     "הקשב להקלטה וענה על השאלה בקצרה.",
                     {'mime_type': 'audio/wav', 'data': audio_data}
                 ])
                 
                 answer = response.text.replace('*', '').replace('#', '').strip()
-                print(f"DEBUG: Gemini answered: {answer}")
+                print(f"DEBUG: Gemini Success! Answer: {answer}")
                 return Response(f"say={answer}&next=hangup", mimetype='text/plain; charset=utf-8')
             else:
                 print(f"DEBUG: Download failed: {audio_response.status_code}")
                 return Response("say=שגיאה בהורדת הקובץ&next=hangup", mimetype='text/plain; charset=utf-8')
         
         except Exception as e:
-            print(f"DEBUG: Gemini Error: {e}")
+            print(f"DEBUG: Gemini Error Details: {str(e)}")
             return Response("say=תקלה בעיבוד הבינה המלאכותית&next=hangup", mimetype='text/plain; charset=utf-8')
 
     return Response("say=ממתין להקלטה&next=hangup", mimetype='text/plain; charset=utf-8')
