@@ -3,8 +3,10 @@ import requests
 import google.generativeai as genai
 from flask import Flask, request, Response
 
-# הגדרת המפתח
-genai.configure(api_key="AIzaSyCTsATxKCBR2EelzU8qzQZ9aOIT6QXLM8U")
+# משיכת המפתח בצורה מאובטחת מהגדרות השרת (Environment Variable)
+# כך גוגל לא תחסום לך את המפתח שוב
+api_key = os.environ.get("GEMINI_API_KEY")
+genai.configure(api_key=api_key)
 
 # הגדרה מפורשת של המודל לגרסה היציבה
 model = genai.GenerativeModel(
@@ -50,7 +52,6 @@ def gemini_chat():
                 return Response("say=שגיאה בהורדת הקובץ&next=hangup", mimetype='text/plain; charset=utf-8')
         
         except Exception as e:
-            # הדפסה מפורטת יותר של השגיאה כדי להבין אם זה עדיין 404
             print(f"DEBUG: Detailed Error: {str(e)}")
             return Response("say=תקלה בעיבוד הבינה המלאכותית&next=hangup", mimetype='text/plain; charset=utf-8')
 
